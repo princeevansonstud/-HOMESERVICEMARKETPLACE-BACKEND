@@ -1,77 +1,60 @@
-"""
-App Factory
-===========
-Creates and configures the Flask application.
-This pattern (the "app factory") is the standard way to set up Flask apps
-because it avoids circular imports and makes testing easier.
-"""
+"""Application factory and shared Flask extensions."""
 
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from flask_jwt_extended import JWTManager
-from flask_cors import CORS
-from dotenv import load_dotenv
 import os
 
-# Load environment variables from .env file
+from dotenv import load_dotenv
+from flask import Flask
+from flask_bcrypt import Bcrypt
+from flask_cors import CORS
+from flask_jwt_extended import JWTManager
+from flask_migrate import Migrate
+from flask_sqlalchemy import SQLAlchemy
+
+
 load_dotenv()
 
-# Initialize extensions (but don't bind them to an app yet)
-# This prevents circular imports between models and routes
+# Extensions are created without an application so models, routes, and tests
+# can import them without creating circular imports.
 db = SQLAlchemy()
+bcrypt = Bcrypt()
 jwt = JWTManager()
 migrate = Migrate()
 
 
-def create_app():
-    """
-    Creates and configures the Flask application instance.
-    
-    Returns:
-        Flask: The configured Flask app.
+def create_app(test_config=None):
+    """Create and configure the Home Service Marketplace Flask application.
+
+    ``test_config`` lets tests replace environment-based settings without
+    changing the normal application configuration.
     """
     app = Flask(__name__)
-
-    # ------------------------------------------------------------------
-    # Configuration
-    # ------------------------------------------------------------------
-    
-    # Secret key for JWT signing and session cookies
-    # In production, this should be a strong random string in your .env file
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key-change-me")
-    
-    # JWT configuration
-    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "jwt-dev-secret-change-me")
-    
-    # Database configuration
-    # For development, SQLite is easier. Switch to PostgreSQL for production.
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
-        "DATABASE_URL", 
-        "sqlite:///homeservice.db"
+    app.config.from_mapping(
+        SECRET_KEY=os.getenv("SECRET_KEY", "dev-secret-key-change-me"),
+        JWT_SECRET_KEY=os.getenv("JWT_SECRET_KEY", "jwt-dev-secret-change-me"),
+        SQLALCHEMY_DATABASE_URI=os.getenv(
+            "DATABASE_URL", "sqlite:///homeservice.db"
+        ),
+        SQLALCHEMY_TRACK_MODIFICATIONS=False,
     )
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-    # ------------------------------------------------------------------
-    # Initialize Extensions with the App
-    # ------------------------------------------------------------------
-    
+    if test_config is not None:
+        app.config.update(test_config)
+
     db.init_app(app)
+    bcrypt.init_app(app)
     jwt.init_app(app)
     migrate.init_app(app, db)
-    
-    # Enable CORS so your React frontend can call this API
     CORS(app)
-    from app import models
 
-    # ------------------------------------------------------------------
-    # Register Blueprints (Routes)
-    # ------------------------------------------------------------------
-    from app.routes.auth import auth_bp
-    from app.routes.users import users_bp
-    from app.routes.listings import listings_bp
-    from app.routes.inquiries import inquiries_bp
+    # Import models after db is defined so SQLAlchemy sees every model before
+    # create_all() is called, including the Inquiry model.
+    from app import models  # noqa: F401
+
     from app.routes.admin import admin_bp
+    from app.routes.auth import auth_bp
+    from app.routes.inquiries import inquiries_bp
+    from app.routes.listings import listings_bp
+    from app.routes.users import users_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(users_bp, url_prefix="/api/users")
@@ -79,11 +62,8 @@ def create_app():
     app.register_blueprint(inquiries_bp, url_prefix="/api/inquiries")
     app.register_blueprint(admin_bp, url_prefix="/api/admin")
 
-    # ------------------------------------------------------------------
-    # Create Database Tables
-    # ------------------------------------------------------------------
-    # db.create_all() looks at all imported models and creates their tables.
-    # This only runs when the app starts.
+    # Keep the existing development behavior: the inquiry and listing tables
+    # are available even before their Alembic migrations are generated.
     with app.app_context():
         db.create_all()
 

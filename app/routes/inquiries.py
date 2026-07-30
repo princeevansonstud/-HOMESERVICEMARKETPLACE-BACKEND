@@ -52,7 +52,11 @@ def get_current_user():
     Returns:
         tuple: (user_id, user_role)
     """
-    user_id = get_jwt_identity()
+    # Auth issues JWT identities as strings, while all foreign-key columns use
+    # integer user IDs. Normalize once here so ownership checks in the service
+    # layer compare like-for-like values (for example, 13 == 13 rather than
+    # 13 == "13").
+    user_id = int(get_jwt_identity())
     claims = get_jwt()
     role = claims.get("role", "customer")
     return user_id, role
