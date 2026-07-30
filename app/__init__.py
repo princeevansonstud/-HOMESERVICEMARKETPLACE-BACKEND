@@ -26,6 +26,6 @@ def create_app():
     CORS(app)
 
     from app.routes.auth import auth_bp
-    app.register_blueprint(auth_bp, url_prefix="/auth")
+    app.register_blueprint(auth_bp, url_prefix="/api/auth")
 
     return app
