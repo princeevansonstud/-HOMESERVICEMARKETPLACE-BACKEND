@@ -14,11 +14,12 @@ Endpoints:
 
 JWT Integration:
     All routes are protected with @jwt_required().
-    The JWT payload contains: { "sub": user_id, "role": "customer|provider|admin" }
+    The JWT identity is the plain user_id (string).
+    The JWT additional claims contain: { "role": "customer|provider|admin" }
 """
 
 from flask import request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 
 from flask import Blueprint
 inquiries_bp = Blueprint("inquiries", __name__)
@@ -40,22 +41,21 @@ from app.schemas.inquiry_schema import api_response
 # ------------------------------------------------------------------
 # Helper: Extract user info from JWT
 # ------------------------------------------------------------------
-# The Auth team's JWT contains: { "sub": user_id, "role": "customer" }
-# We wrap this in a helper so routes stay clean.
+# The Auth team's JWT sets identity=user_id (a plain string) and adds
+# "role" as an additional claim, not inside identity. So we read the
+# role via get_jwt() rather than get_jwt_identity().
 
 def get_current_user():
     """
     Extracts user_id and role from the JWT token.
-    
+
     Returns:
         tuple: (user_id, user_role)
     """
-    identity = get_jwt_identity()
-    # identity could be a dict or just the user_id depending on Auth team's setup
-    # Based on your answers, it contains user_id and role.
-    if isinstance(identity, dict):
-        return identity.get("sub"), identity.get("role", "customer")
-    return identity, "customer"  # Fallback if identity is just the ID
+    user_id = get_jwt_identity()
+    claims = get_jwt()
+    role = claims.get("role", "customer")
+    return user_id, role
 
 
 # ------------------------------------------------------------------
@@ -68,13 +68,13 @@ def get_current_user():
 def create_inquiry_route():
     """
     Customer sends an inquiry about a service listing.
-    
+
     Request Body:
         {
             "listing_id": 1,
             "message": "Hi, are you available this weekend?"
         }
-    
+
     Returns:
         201 Created: { success: true, message: "...", data: {...} }
         400 Bad Request: Validation failed
@@ -132,10 +132,10 @@ def list_inquiries_route():
         - Customer: All inquiries they sent (with optional ?status= filter)
         - Provider: All inquiries for their listings (with optional ?status= filter)
         - Admin: All inquiries (future expansion)
-    
+
     Query Params:
         ?status=pending|replied|closed (optional)
-    
+
     Returns:
         200 OK: { success: true, data: [...] }
     """
@@ -176,7 +176,7 @@ def list_inquiries_route():
 def get_inquiry_route(inquiry_id):
     """
     Fetch a single inquiry if the user is authorized to view it.
-    
+
     Returns:
         200 OK: { success: true, data: {...} }
         404 Not Found: Inquiry doesn't exist
@@ -221,10 +221,10 @@ def get_inquiry_route(inquiry_id):
 def update_status_route(inquiry_id):
     """
     Provider updates the status of an inquiry.
-    
+
     Request Body:
         { "status": "replied" }  or  { "status": "closed" }
-    
+
     Returns:
         200 OK: Updated inquiry
         400 Bad Request: Invalid status or transition
@@ -285,12 +285,12 @@ def update_status_route(inquiry_id):
 def delete_inquiry_route(inquiry_id):
     """
     Delete an inquiry.
-    
+
     Authorization:
         - Customer: can delete their own inquiries
         - Admin: can delete any inquiry
         - Provider: cannot delete
-    
+
     Returns:
         200 OK: Successfully deleted
         403 Forbidden: Not authorized
