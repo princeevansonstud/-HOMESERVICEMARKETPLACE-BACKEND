@@ -1,44 +1,49 @@
 """
 Models
-======
+
 All database models live in this single file.
-This is a team convention — everyone adds their models here.
+This is a team convention —everyone adds their models here.
 """
 
 from app import db
 
 
 # ===================================================================
-# STUB MODELS (owned by other team members)
+# USER MODEL (Auth Team)
 # ===================================================================
-# These are minimal placeholders so your Inquiry model can reference
-# them via ForeignKey. When your teammates finish their models,
-# just replace these stubs with their full implementations.
-# DO NOT DELETE these stubs until the real models are merged.
 
 class User(db.Model):
-    """
-    STUB: Owned by the Auth team.
-    Replace this with the real User model when ready.
-    """
     __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(255), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False, default="customer")
     created_at = db.Column(db.DateTime, server_default=db.func.now())
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "email": self.email,
+            "role": self.role,
+        }
 
     def __repr__(self):
         return f"<User {self.name}>"
 
 
+# ===================================================================
+# LISTING MODEL (Temporary Stub)
+# ===================================================================
+
 class Listing(db.Model):
     """
-    STUB: Owned by the Listings team.
-    Replace this with the real Listing model when ready.
+    Temporary stub model for Listings.
+    Replace with the Listings team's full model when merged.
     """
+
     __tablename__ = "listings"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -47,7 +52,11 @@ class Listing(db.Model):
     category = db.Column(db.String(50))
     location = db.Column(db.String(100))
     price_range = db.Column(db.String(50))
-    provider_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    provider_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id"),
+        nullable=False,
+    )
     created_at = db.Column(db.DateTime, server_default=db.func.now())
 
     def __repr__(self):
@@ -55,73 +64,64 @@ class Listing(db.Model):
 
 
 # ===================================================================
-# YOUR MODEL: Inquiry / Contact Flow
+# INQUIRY MODEL (Your Feature)
 # ===================================================================
 
 class Inquiry(db.Model):
     """
     Represents a customer inquiry about a home service listing.
-
-    A customer sends an inquiry to a provider about a specific listing.
-    The provider can view it in their inbox and update the status.
     """
 
     __tablename__ = "inquiries"
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # The customer who sent the inquiry
     customer_id = db.Column(
         db.Integer,
         db.ForeignKey("users.id", ondelete="SET NULL"),
         nullable=False,
-        index=True
+        index=True,
     )
 
-    # The service listing being inquired about
     listing_id = db.Column(
         db.Integer,
         db.ForeignKey("listings.id", ondelete="SET NULL"),
         nullable=False,
-        index=True
+        index=True,
     )
 
-    # The inquiry message
     message = db.Column(db.Text, nullable=False)
 
-    # Status: pending, replied, closed
     status = db.Column(
         db.String(20),
         nullable=False,
         default="pending",
-        server_default="pending"
+        server_default="pending",
     )
 
-    # Timestamps
     created_at = db.Column(
         db.DateTime,
         nullable=False,
-        server_default=db.func.now()
+        server_default=db.func.now(),
     )
 
     updated_at = db.Column(
         db.DateTime,
         nullable=False,
         server_default=db.func.now(),
-        onupdate=db.func.now()
+        onupdate=db.func.now(),
     )
 
-    # Relationships
     customer = db.relationship(
         "User",
         backref=db.backref("inquiries", lazy="dynamic"),
-        lazy="joined"
+        lazy="joined",
     )
 
     listing = db.relationship(
         "Listing",
         backref=db.backref("inquiries", lazy="dynamic"),
-        lazy="joined"
+        lazy="joined",
     )
 
     def __repr__(self):
