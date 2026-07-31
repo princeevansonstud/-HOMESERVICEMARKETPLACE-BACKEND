@@ -6,3 +6,5 @@ Flask-JWT-Extended
 Flask-CORS
 python-dotenv
 gunicorn
+marshmallow
+flask-marshmallow
