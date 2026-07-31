@@ -4,4 +4,4 @@ Flask-Migrate
 Flask-Bcrypt
 Flask-JWT-Extended
 Flask-CORS
-python-dotenv
+python-dotenvgunicorn
