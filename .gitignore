@@ -1,0 +1,21 @@
+# Environment variables
+.env
+
+# Local SQLite database
+instance/
+*.db
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Flask migrations (optional - some teams include these, some don't)
+# migrations/versions/*.pyc
