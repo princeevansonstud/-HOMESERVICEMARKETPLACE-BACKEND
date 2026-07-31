@@ -5,3 +5,4 @@ Flask-Bcrypt
 Flask-JWT-Extended
 Flask-CORS
 python-dotenvgunicorn
+gunicorn
